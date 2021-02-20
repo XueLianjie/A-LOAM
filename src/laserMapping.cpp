@@ -100,7 +100,7 @@ pcl::PointCloud<PointType>::Ptr laserCloudSurfFromMap(new pcl::PointCloud<PointT
 pcl::PointCloud<PointType>::Ptr laserCloudFullRes(new pcl::PointCloud<PointType>());
 
 // points in every cube
-pcl::PointCloud<PointType>::Ptr laserCloudCornerArray[laserCloudNum];
+pcl::PointCloud<PointType>::Ptr laserCloudCornerArray[laserCloudNum]; // 11 * 21 * 21 = 4851
 pcl::PointCloud<PointType>::Ptr laserCloudSurfArray[laserCloudNum];
 
 //kd-tree
@@ -306,13 +306,15 @@ void process()
 
 			TicToc t_whole;
 
-			transformAssociateToMap();
+			transformAssociateToMap(); // 先转到world坐标系
 
+			// 取整，计算机器人在地图中的坐标
 			TicToc t_shift;
-			int centerCubeI = int((t_w_curr.x() + 25.0) / 50.0) + laserCloudCenWidth;
-			int centerCubeJ = int((t_w_curr.y() + 25.0) / 50.0) + laserCloudCenHeight;
-			int centerCubeK = int((t_w_curr.z() + 25.0) / 50.0) + laserCloudCenDepth;
+			int centerCubeI = int((t_w_curr.x() + 25.0) / 50.0) + laserCloudCenWidth; // 10
+			int centerCubeJ = int((t_w_curr.y() + 25.0) / 50.0) + laserCloudCenHeight; // 10
+			int centerCubeK = int((t_w_curr.z() + 25.0) / 50.0) + laserCloudCenDepth; // 5
 
+			// 在坐标负轴方向取整需要-1
 			if (t_w_curr.x() + 25.0 < 0)
 				centerCubeI--;
 			if (t_w_curr.y() + 25.0 < 0)
@@ -320,12 +322,16 @@ void process()
 			if (t_w_curr.z() + 25.0 < 0)
 				centerCubeK--;
 
+			// 要以地图的视角来看，一开始地图是中心与机器人初始坐标系重合的，随着机器人的运动机器人在map中的位置会发生变化，当机器人在地图中的坐标靠近
+			// 地图边缘的时候，即机器人在地图中的坐标靠近地图上边缘或者是下边缘，则将地图进行移动。
+			// 如果机器人自身坐标系靠近map的下边界则将整个map向下移位
 			while (centerCubeI < 3)
 			{
-				for (int j = 0; j < laserCloudHeight; j++)
+				for (int j = 0; j < laserCloudHeight; j++) // 21
 				{
-					for (int k = 0; k < laserCloudDepth; k++)
+					for (int k = 0; k < laserCloudDepth; k++) // 11
 					{ 
+						// 保留width方向的最大的位置的地图方格，之后进行释放
 						int i = laserCloudWidth - 1;
 						pcl::PointCloud<PointType>::Ptr laserCloudCubeCornerPointer =
 							laserCloudCornerArray[i + laserCloudWidth * j + laserCloudWidth * laserCloudHeight * k]; 
@@ -347,8 +353,8 @@ void process()
 					}
 				}
 
-				centerCubeI++;
-				laserCloudCenWidth++;
+				centerCubeI++; // 地图向下移动了之后，相应的机器人在地图中的坐标会增加，机器人在world坐标系下的坐标并没有变化
+				laserCloudCenWidth++; // 由于下一次需要重新计算机器人在地图中的坐标，这里对机器人在地图中的坐标的偏移量进行++操作相当于地图进行了下移
 			}
 
 			while (centerCubeI >= laserCloudWidth - 3)
@@ -505,7 +511,8 @@ void process()
 				centerCubeK--;
 				laserCloudCenDepth--;
 			}
-
+			// 上面的操作是维护的一个大图
+			// 下面的操作是维护的一个5 * 5 * 3的小图
 			int laserCloudValidNum = 0;
 			int laserCloudSurroundNum = 0;
 
@@ -519,9 +526,9 @@ void process()
 							j >= 0 && j < laserCloudHeight &&
 							k >= 0 && k < laserCloudDepth)
 						{ 
-							laserCloudValidInd[laserCloudValidNum] = i + laserCloudWidth * j + laserCloudWidth * laserCloudHeight * k;
+							laserCloudValidInd[laserCloudValidNum] = i + laserCloudWidth * j + laserCloudWidth * laserCloudHeight * k;// 机器人周围的方格index
 							laserCloudValidNum++;
-							laserCloudSurroundInd[laserCloudSurroundNum] = i + laserCloudWidth * j + laserCloudWidth * laserCloudHeight * k;
+							laserCloudSurroundInd[laserCloudSurroundNum] = i + laserCloudWidth * j + laserCloudWidth * laserCloudHeight * k; // 这个只是用来进行pub可视化用的
 							laserCloudSurroundNum++;
 						}
 					}
@@ -754,7 +761,7 @@ void process()
 					cubeK >= 0 && cubeK < laserCloudDepth)
 				{
 					int cubeInd = cubeI + laserCloudWidth * cubeJ + laserCloudWidth * laserCloudHeight * cubeK;
-					laserCloudCornerArray[cubeInd]->push_back(pointSel);
+					laserCloudCornerArray[cubeInd]->push_back(pointSel); //这里是关键且唯一的对地图进行填充的位置
 				}
 			}
 
