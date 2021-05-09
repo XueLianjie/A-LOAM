@@ -49,6 +49,7 @@ target_link_libraries(alaserMapping ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES
 add_executable(kittiHelper src/kittiHelper.cpp)
 target_link_libraries(kittiHelper ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
 
-
+add_executable (random_sample_consensus src/random_sample_consensus.cpp)
+target_link_libraries (random_sample_consensus ${PCL_LIBRARIES})
 
 
